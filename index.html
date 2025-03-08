@@ -14,33 +14,11 @@
       display: flex;
       height: 100vh;
     }
-    /* グリッド領域（固定UIとセル領域を分離） */
+    /* グリッド領域 */
     #grid-container {
       flex: 1;
       position: relative;
       background-color: #ccc;
-    }
-    /* 固定UI（レベル情報・コントロール） */
-    #level-info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background-color: rgba(255,255,255,0.9);
-      padding: 5px 10px;
-      border-radius: 5px;
-      z-index: 2;
-    }
-    #controls {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      display: flex;
-      gap: 10px;
-      z-index: 2;
-    }
-    button {
-      padding: 5px 10px;
-      cursor: pointer;
     }
     /* グリッドセル領域 */
     #grid-cells {
@@ -59,12 +37,38 @@
       font-size: 2em;
       user-select: none;
     }
-    /* パレット領域 */
+    /* コントロール領域（リセット・ヒントボタン） */
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 2;
+    }
+    button {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    /* パレット領域（右サイドバー） */
     #palette {
       width: 150px;
       background-color: #f5f5f5;
       padding: 10px;
       border-left: 2px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* レベル情報をパレット内に表示 */
+    #level-info {
+      width: 100%;
+      background-color: rgba(255,255,255,0.9);
+      padding: 5px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      text-align: center;
+      font-size: 0.9em;
     }
     .palette-button {
       width: 100%;
@@ -82,28 +86,29 @@
 </head>
 <body>
   <div id="game-container">
-    <!-- グリッドと固定UI部分 -->
+    <!-- グリッド領域 -->
     <div id="grid-container">
-      <div id="level-info">
-        <div id="level-title"></div>
-        <div id="level-objective"></div>
-        <div id="time-display">Time: 0 sec, Turn: 0</div>
-      </div>
       <div id="grid-cells"></div>
       <div id="controls">
         <button id="reset-button">リセット</button>
         <button id="hint-button">ヒント</button>
       </div>
     </div>
-    <!-- パレット領域 -->
+    <!-- パレット領域（右側） -->
     <div id="palette">
+      <!-- レベル情報をパレット内に配置 -->
+      <div id="level-info">
+        <div id="level-title"></div>
+        <div id="level-objective"></div>
+        <div id="time-display">Time: 0 sec, Turn: 0</div>
+      </div>
+      <!-- 天気要素パレット -->
       <button class="palette-button" data-element="sun">☀️</button>
       <button class="palette-button" data-element="rain">🌧️</button>
       <button class="palette-button" data-element="wind">🌬️</button>
       <button class="palette-button" data-element="snow">❄️</button>
       <button class="palette-button" data-element="thunder">⚡</button>
       <button class="palette-button" data-element="cloud">☁️</button>
-      <!-- 新要素 -->
       <button class="palette-button" data-element="rainbow">🌈</button>
       <button class="palette-button" data-element="aurora">🌌</button>
       <button class="palette-button" data-element="typhoon">🌀</button>
@@ -261,7 +266,6 @@
       cells.forEach((cell, index) => {
         if (cell.textContent === weatherElements.typhoon) {
           const neighbors = getNeighborIndexes(index);
-          // 対象は、種（🌱）や木（🌳）以外の天気要素
           const validNeighbors = neighbors.filter(idx => {
             const content = cells[idx].textContent;
             return content !== "" && content !== "🌱" && content !== "🌳";
@@ -280,7 +284,7 @@
       });
     }
 
-    // 新要素のタイマー更新（新要素は設定ターン経過後に自動消失）
+    // 新要素のタイマー更新（持続ターン経過後に自動消失）
     function updateWeatherElementTimers() {
       cells.forEach(cell => {
         const content = cell.textContent;
@@ -324,7 +328,6 @@
         turn++;
         timeDisplay.textContent = 'Time: ' + turn + ' sec, Turn: ' + turn;
         const currentLevel = levels[currentLevelIndex];
-        // 各種の成長処理（種が条件を満たすと成長カウンターが進む）
         cells.forEach((cell, index) => {
           if (cell.textContent === "🌱") {
             const increment = getSeedGrowthIncrement(index);
@@ -341,11 +344,8 @@
             }
           }
         });
-        // 新要素のタイマー更新
         updateWeatherElementTimers();
-        // 台風の効果を適用
         applyTyphoonEffect();
-        // レベルクリア判定
         checkLevelCompletion();
       }, turnInterval);
     }
