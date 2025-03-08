@@ -86,7 +86,7 @@
         growthThreshold: 3,
         completionCheck: () => cells[8].textContent === "🌳"
       },
-      // レベル2～10は前回のコード例と同様（省略）
+      // レベル2～10は前回と同様（省略）
       {
         level: 2,
         name: "橋渡し",
@@ -215,7 +215,6 @@
       if (selectedElement) {
         cell.textContent = weatherElements[selectedElement];
         cell.dataset.growth = "0";
-        // 新要素の場合、使用可能なターン数をセット
         if (["rainbow", "aurora", "typhoon"].includes(selectedElement)) {
           cell.dataset.timer = (selectedElement === "typhoon") ? 2 : 5;
         } else { delete cell.dataset.timer; }
@@ -251,24 +250,28 @@
       return neighbors;
     }
 
-    // レベル1・9の成長条件：隣接セルに☀️と🌧️がある場合に成長
+    // 修正済み：種の成長シミュレーション（レベル1・9）
     function simulateSeedGrowth(index) {
       const cell = cells[index];
-      let increment = 0;
       const neighbors = getNeighborIndexes(index);
-      const hasSun = neighbors.some(idx => cells[idx].textContent === weatherElements.sun);
-      const hasRain = neighbors.some(idx => cells[idx].textContent === weatherElements.rain);
-      if (hasSun && hasRain) {
-        // 虹があれば効果アップ（2倍）
-        const bonus = neighbors.some(idx => cells[idx].textContent === weatherElements.rainbow) ? 2 : 1;
-        increment = bonus;
+      let hasSun = false;
+      let hasRain = false;
+      let bonus = 1;
+      for (let n of neighbors) {
+        if (cells[n].textContent === weatherElements.sun) hasSun = true;
+        if (cells[n].textContent === weatherElements.rain) hasRain = true;
+        if (cells[n].textContent === weatherElements.rainbow) bonus = 2;
       }
-      let growth = parseInt(cell.dataset.growth) || 0;
-      growth += increment;
-      cell.dataset.growth = growth;
-      if (growth >= levels[currentLevelIndex].growthThreshold) {
-        // 成長条件を満たせば種が木に変化
-        cell.textContent = "🌳";
+      if (hasSun && hasRain) {
+        let growth = Number(cell.dataset.growth) || 0;
+        growth += bonus;
+        cell.dataset.growth = growth.toString();
+        if (growth >= levels[currentLevelIndex].growthThreshold) {
+          cell.textContent = "🌳";
+          cell.dataset.growth = "0";
+        }
+      } else {
+        // 条件が継続して満たされていなければカウンターをリセット
         cell.dataset.growth = "0";
       }
     }
@@ -303,7 +306,7 @@
           let t = parseInt(cell.dataset.timer);
           t--;
           if (t <= 0) { cell.textContent = ""; delete cell.dataset.timer; }
-          else { cell.dataset.timer = t; }
+          else { cell.dataset.timer = t.toString(); }
         }
       });
     }
@@ -322,18 +325,13 @@
         turn++;
         timeDisplay.textContent = 'Time: ' + turn + ' sec, Turn: ' + turn;
         const currentLevel = levels[currentLevelIndex];
-        // 各セルの種 (🌱) の成長シミュレーション（レベル1、9の場合）
         cells.forEach((cell, index) => {
           if (cell.textContent === "🌱") {
-            // レベル1とレベル9の処理
             simulateSeedGrowth(index);
           }
         });
-        // 新要素のタイマー更新
         updateWeatherElementTimers();
-        // 各レベル固有の自動効果
         simulateEffects(currentLevel);
-        // レベルクリア判定
         if (checkLevelCompletion(currentLevel)) {
           levelComplete();
         }
