@@ -109,6 +109,8 @@
       <div id="controls">
         <button id="reset-button">リセット</button>
         <button id="hint-button">ヒント</button>
+        <!-- 追加：レベルスキップボタン -->
+        <button id="skip-button">レベルスキップ</button>
       </div>
     </div>
     <!-- パレット領域（右側） -->
@@ -129,14 +131,13 @@
       <button class="palette-button" data-element="rainbow">🌈</button>
       <button class="palette-button" data-element="aurora">🌌</button>
       <button class="palette-button" data-element="typhoon">🌀</button>
-      <!-- 新たに追加：春と秋 -->
       <button class="palette-button" data-element="spring">🌸</button>
       <button class="palette-button" data-element="autumn">🍂</button>
     </div>
   </div>
 
   <script>
-    // 天気要素の対応表（春と秋を追加）
+    // 天気要素の対応表
     const weatherElements = {
       sun: "☀️", rain: "🌧️", wind: "🌬️", snow: "❄️",
       thunder: "⚡", cloud: "☁️", rainbow: "🌈", aurora: "🌌", typhoon: "🌀",
@@ -515,6 +516,17 @@
     document.getElementById("start-button").addEventListener("click", function() {
       document.getElementById("start-screen").style.display = "none";
       loadLevel(currentLevelIndex);
+    });
+
+    // 追加：レベルスキップボタンの処理
+    document.getElementById("skip-button").addEventListener("click", function() {
+      clearInterval(simulationTimer);
+      if (currentLevelIndex < levels.length - 1) {
+        currentLevelIndex++;
+        loadLevel(currentLevelIndex);
+      } else {
+        alert("これ以上スキップできません。");
+      }
     });
   </script>
 </body>
