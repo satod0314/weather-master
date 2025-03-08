@@ -129,14 +129,18 @@
       <button class="palette-button" data-element="rainbow">🌈</button>
       <button class="palette-button" data-element="aurora">🌌</button>
       <button class="palette-button" data-element="typhoon">🌀</button>
+      <!-- 新たに追加：春と秋 -->
+      <button class="palette-button" data-element="spring">🌸</button>
+      <button class="palette-button" data-element="autumn">🍂</button>
     </div>
   </div>
 
   <script>
-    // 天気要素の対応表
+    // 天気要素の対応表（春と秋を追加）
     const weatherElements = {
       sun: "☀️", rain: "🌧️", wind: "🌬️", snow: "❄️",
-      thunder: "⚡", cloud: "☁️", rainbow: "🌈", aurora: "🌌", typhoon: "🌀"
+      thunder: "⚡", cloud: "☁️", rainbow: "🌈", aurora: "🌌", typhoon: "🌀",
+      spring: "🌸", autumn: "🍂"
     };
 
     // レベル設定（レベル1～10）
@@ -200,7 +204,7 @@
         level: 7,
         name: "季節のサイクル",
         objective: "4つのエリアに異なる季節を作る（冬、春、夏、秋）",
-        allowedElements: ["all"],
+        allowedElements: ["snow", "spring", "sun", "autumn"],
         initialState: {1: "", 10: "", 20: "", 30: ""},
         clearCondition: "セル1に❄️、セル10に🌸、セル20に☀️、セル30に🍂を作り出す",
         completionCheck: () =>
@@ -489,7 +493,6 @@
         "目標: " + currentLevel.objective;
       document.getElementById("allowed-elements").textContent =
         "使用可能: " + currentLevel.allowedElements.join(" ");
-      // クリア条件エリアに設定
       document.getElementById("clear-conditions").textContent =
         "クリア条件: " + currentLevel.clearCondition;
       createGrid();
