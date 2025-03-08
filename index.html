@@ -35,9 +35,27 @@
     }
     .selected { border: 2px solid red; }
     .activated { background-color: yellow; }
+    /* スタート画面オーバーレイ */
+    #start-screen {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10;
+    }
+    #start-button {
+      padding: 20px 40px; font-size: 2em;
+      background-color: #fff; border: none; border-radius: 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+  <!-- スタート画面オーバーレイ -->
+  <div id="start-screen">
+    <button id="start-button">スタート</button>
+  </div>
+  
   <div id="game-container">
     <!-- グリッド領域 -->
     <div id="grid-container">
@@ -86,7 +104,7 @@
         growthThreshold: 3,
         completionCheck: () => cells[8].textContent === "🌳"
       },
-      // レベル2～10は前回と同様（省略）
+      // 以下、レベル2～10は前回と同様（省略）
       {
         level: 2,
         name: "橋渡し",
@@ -271,7 +289,6 @@
           cell.dataset.growth = "0";
         }
       } else {
-        // 条件が継続して満たされていなければカウンターをリセット
         cell.dataset.growth = "0";
       }
     }
@@ -313,7 +330,7 @@
 
     let turn = 0;
     const timeDisplay = document.getElementById("time-display");
-    const turnInterval = 1000; // 1秒ごと
+    const turnInterval = 1000;
     let simulationTimer = null;
 
     function checkLevelCompletion(currentLevel) {
@@ -431,7 +448,13 @@
       alert("ヒント:\n・ミッションはレベルごとに異なります。\n・指定セルやエリアに必要な状態になるよう、天気要素を配置してください。\n（例：レベル1は種の隣に☀️と🌧️を配置すると成長します）");
     });
 
-    loadLevel(currentLevelIndex);
+    // スタートボタンの処理
+    document.getElementById("start-button").addEventListener("click", function() {
+      // スタートボタンのオーバーレイを非表示にする
+      document.getElementById("start-screen").style.display = "none";
+      // ゲームを開始
+      loadLevel(currentLevelIndex);
+    });
   </script>
 </body>
 </html>
