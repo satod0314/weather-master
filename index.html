@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>ウェザーマスター：天気パズルゲーム</title>
+  <style>
+    /* 全体レイアウト */
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
+    #game-container {
+      display: flex;
+      height: 100vh;
+    }
+    /* グリッド領域（固定UIとセル領域を分離） */
+    #grid-container {
+      flex: 1;
+      position: relative;
+      background-color: #ccc;
+    }
+    /* 固定UI（レベル情報・コントロール） */
+    #level-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(255,255,255,0.9);
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 2;
+    }
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 2;
+    }
+    button {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    /* グリッドセル領域 */
+    #grid-cells {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 2px;
+      height: 100%;
+    }
+    .grid-cell {
+      background-color: #fff;
+      border: 1px solid #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      user-select: none;
+    }
+    /* パレット領域 */
+    #palette {
+      width: 150px;
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-left: 2px solid #ccc;
+    }
+    .palette-button {
+      width: 100%;
+      font-size: 2em;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .selected {
+      border: 2px solid red;
+    }
+    .activated {
+      background-color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <!-- グリッドと固定UI部分 -->
+    <div id="grid-container">
+      <div id="level-info">
+        <div id="level-title"></div>
+        <div id="level-objective"></div>
+        <div id="time-display">Time: 0 sec, Turn: 0</div>
+      </div>
+      <div id="grid-cells"></div>
+      <div id="controls">
+        <button id="reset-button">リセット</button>
+        <button id="hint-button">ヒント</button>
+      </div>
+    </div>
+    <!-- パレット領域 -->
+    <div id="palette">
+      <button class="palette-button" data-element="sun">☀️</button>
+      <button class="palette-button" data-element="rain">🌧️</button>
+      <button class="palette-button" data-element="wind">🌬️</button>
+      <button class="palette-button" data-element="snow">❄️</button>
+      <button class="palette-button" data-element="thunder">⚡</button>
+      <button class="palette-button" data-element="cloud">☁️</button>
+      <!-- 新要素 -->
+      <button class="palette-button" data-element="rainbow">🌈</button>
+      <button class="palette-button" data-element="aurora">🌌</button>
+      <button class="palette-button" data-element="typhoon">🌀</button>
+    </div>
+  </div>
+
+  <script>
+    // 天気要素の対応表
+    const weatherElements = {
+      sun: "☀️",
+      rain: "🌧️",
+      wind: "🌬️",
+      snow: "❄️",
+      thunder: "⚡",
+      cloud: "☁️",
+      rainbow: "🌈",
+      aurora: "🌌",
+      typhoon: "🌀"
+    };
+
+    // レベル設定（例として2レベル）
+    const levels = [
+      {
+        level: 1,
+        name: "最初の一歩",
+        objective: "1本の木を成長させる（太陽+雨 または 雪+オーロラの組み合わせ）",
+        seedIndexes: [8],
+        growthThreshold: 3
+      },
+      {
+        level: 2,
+        name: "二本目の成長",
+        objective: "2本の木を成長させる",
+        seedIndexes: [8, 15],
+        growthThreshold: 3
+      }
+    ];
+    let currentLevelIndex = 0;
+
+    // グリッド設定
+    const gridSize = 6;
+    const gridCellsContainer = document.getElementById("grid-cells");
+    let cells = [];
+
+    function createGrid() {
+      gridCellsContainer.innerHTML = "";
+      cells = [];
+      for (let i = 0; i < gridSize * gridSize; i++) {
+        const cell = document.createElement("div");
+        cell.classList.add("grid-cell");
+        cell.dataset.index = i;
+        cell.dataset.growth = "0";
+        cell.addEventListener("click", onCellClick);
+        cell.addEventListener("contextmenu", onCellRightClick);
+        // 長押しで削除（800ms以上ホールド）
+        let pressTimer;
+        cell.addEventListener("mousedown", function(e) {
+          pressTimer = window.setTimeout(() => {
+            cell.textContent = "";
+            cell.dataset.growth = "0";
+            delete cell.dataset.timer;
+          }, 800);
+        });
+        cell.addEventListener("mouseup", function(e) {
+          clearTimeout(pressTimer);
+        });
+        cell.addEventListener("mouseout", function(e) {
+          clearTimeout(pressTimer);
+        });
+        gridCellsContainer.appendChild(cell);
+        cells.push(cell);
+      }
+    }
+
+    // パレット処理
+    let selectedElement = null;
+    const paletteButtons = document.querySelectorAll(".palette-button");
+    paletteButtons.forEach(button => {
+      button.addEventListener("click", function() {
+        paletteButtons.forEach(btn => btn.classList.remove("selected"));
+        selectedElement = button.dataset.element;
+        button.classList.add("selected");
+      });
+    });
+
+    function onCellClick(e) {
+      const cell = e.currentTarget;
+      if (selectedElement) {
+        cell.textContent = weatherElements[selectedElement];
+        cell.dataset.growth = "0";
+        // 新要素の場合、使用可能なターン数をセット
+        if (selectedElement === "rainbow") {
+          cell.dataset.timer = 5; // 5ターン持続
+        } else if (selectedElement === "aurora") {
+          cell.dataset.timer = 5;
+        } else if (selectedElement === "typhoon") {
+          cell.dataset.timer = 2;
+        } else {
+          delete cell.dataset.timer;
+        }
+      } else {
+        if (cell.textContent !== "") {
+          cell.classList.toggle("activated");
+        }
+      }
+    }
+
+    function onCellRightClick(e) {
+      e.preventDefault();
+      const cell = e.currentTarget;
+      cell.textContent = "";
+      cell.dataset.growth = "0";
+      delete cell.dataset.timer;
+    }
+
+    function getNeighborIndexes(index) {
+      const neighbors = [];
+      const row = Math.floor(index / gridSize);
+      const col = index % gridSize;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const newRow = row + dr;
+          const newCol = col + dc;
+          if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+            neighbors.push(newRow * gridSize + newCol);
+          }
+        }
+      }
+      return neighbors;
+    }
+
+    // 種の成長条件：隣接セルに「☀️」と「🌧️」があるか、または「❄️」と「🌌」があるか
+    // なお、隣接セルに虹（🌈）がある場合、成長カウンターの増加量が2倍になります。
+    function getSeedGrowthIncrement(index) {
+      const neighbors = getNeighborIndexes(index);
+      let hasSun = false, hasRain = false, hasAurora = false, hasSnow = false;
+      let bonus = 1;
+      neighbors.forEach(idx => {
+        const content = cells[idx].textContent;
+        if (content === weatherElements.sun) hasSun = true;
+        if (content === weatherElements.rain) hasRain = true;
+        if (content === weatherElements.aurora) hasAurora = true;
+        if (content === weatherElements.snow) hasSnow = true;
+        if (content === weatherElements.rainbow) bonus = 2; // 効果強化
+      });
+      if ((hasSun && hasRain) || (hasAurora && hasSnow)) {
+        return bonus;
+      }
+      return 0;
+    }
+
+    // 台風の効果：台風セル（🌀）の隣接セル同士をランダムに入れ替える
+    function applyTyphoonEffect() {
+      cells.forEach((cell, index) => {
+        if (cell.textContent === weatherElements.typhoon) {
+          const neighbors = getNeighborIndexes(index);
+          // 対象は、種（🌱）や木（🌳）以外の天気要素
+          const validNeighbors = neighbors.filter(idx => {
+            const content = cells[idx].textContent;
+            return content !== "" && content !== "🌱" && content !== "🌳";
+          });
+          if (validNeighbors.length >= 2) {
+            const idx1 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            let idx2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            while (idx1 === idx2 && validNeighbors.length > 1) {
+              idx2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            }
+            const temp = cells[idx1].textContent;
+            cells[idx1].textContent = cells[idx2].textContent;
+            cells[idx2].textContent = temp;
+          }
+        }
+      });
+    }
+
+    // 新要素のタイマー更新（新要素は設定ターン経過後に自動消失）
+    function updateWeatherElementTimers() {
+      cells.forEach(cell => {
+        const content = cell.textContent;
+        if (content === weatherElements.rainbow ||
+            content === weatherElements.aurora ||
+            content === weatherElements.typhoon) {
+          if (cell.dataset.timer) {
+            let t = parseInt(cell.dataset.timer);
+            t--;
+            if (t <= 0) {
+              cell.textContent = "";
+              delete cell.dataset.timer;
+            } else {
+              cell.dataset.timer = t;
+            }
+          }
+        }
+      });
+    }
+
+    let turn = 0;
+    const timeDisplay = document.getElementById("time-display");
+    const turnInterval = 1000; // 1秒ごと
+    let simulationTimer = null;
+
+    function checkLevelCompletion() {
+      const currentLevel = levels[currentLevelIndex];
+      let completeCount = 0;
+      currentLevel.seedIndexes.forEach(idx => {
+        if (cells[idx].textContent === "🌳") {
+          completeCount++;
+        }
+      });
+      if (completeCount === currentLevel.seedIndexes.length) {
+        levelComplete();
+      }
+    }
+
+    function startSimulationTimer() {
+      simulationTimer = setInterval(function() {
+        turn++;
+        timeDisplay.textContent = 'Time: ' + turn + ' sec, Turn: ' + turn;
+        const currentLevel = levels[currentLevelIndex];
+        // 各種の成長処理（種が条件を満たすと成長カウンターが進む）
+        cells.forEach((cell, index) => {
+          if (cell.textContent === "🌱") {
+            const increment = getSeedGrowthIncrement(index);
+            if (increment > 0) {
+              let growth = parseInt(cell.dataset.growth) || 0;
+              growth += increment;
+              cell.dataset.growth = growth;
+              if (growth >= currentLevel.growthThreshold) {
+                cell.textContent = "🌳";
+                cell.dataset.growth = "0";
+              }
+            } else {
+              cell.dataset.growth = "0";
+            }
+          }
+        });
+        // 新要素のタイマー更新
+        updateWeatherElementTimers();
+        // 台風の効果を適用
+        applyTyphoonEffect();
+        // レベルクリア判定
+        checkLevelCompletion();
+      }, turnInterval);
+    }
+
+    function levelComplete() {
+      clearInterval(simulationTimer);
+      alert("レベル" + levels[currentLevelIndex].level + "クリア！");
+      if (currentLevelIndex < levels.length - 1) {
+        currentLevelIndex++;
+        setTimeout(() => loadLevel(currentLevelIndex), 1000);
+      } else {
+        alert("全レベルクリア！おめでとうございます！");
+      }
+    }
+
+    function loadLevel(levelIndex) {
+      turn = 0;
+      timeDisplay.textContent = 'Time: ' + turn + ' sec, Turn: ' + turn;
+      const currentLevel = levels[levelIndex];
+      document.getElementById("level-title").textContent =
+        "レベル" + currentLevel.level + "：「" + currentLevel.name + "」";
+      document.getElementById("level-objective").textContent =
+        "目標: " + currentLevel.objective;
+      createGrid();
+      currentLevel.seedIndexes.forEach(idx => {
+        cells[idx].textContent = "🌱";
+        cells[idx].dataset.growth = "0";
+      });
+      startSimulationTimer();
+    }
+
+    document.getElementById("reset-button").addEventListener("click", function() {
+      clearInterval(simulationTimer);
+      loadLevel(currentLevelIndex);
+    });
+
+    document.getElementById("hint-button").addEventListener("click", function() {
+      alert("ヒント: 種の隣に☀️と🌧️、または❄️と🌌を配置すると成長します。\n虹（🌈）で効果アップ、台風（🌀）で要素がランダムに移動します。");
+    });
+
+    loadLevel(currentLevelIndex);
+  </script>
+</body>
+</html>
