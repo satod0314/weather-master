@@ -9,29 +9,72 @@
     body { margin: 0; font-family: sans-serif; }
     #game-container { display: flex; height: 100vh; }
     /* グリッド領域 */
-    #grid-container { flex: 1; position: relative; background-color: #ccc; }
-    #grid-cells { display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(6, 1fr); gap: 2px; height: 100%; }
+    #grid-container { 
+      flex: 1; 
+      position: relative; 
+      background-color: #ccc; 
+      display: flex;
+      flex-direction: column;
+    }
+    /* クリア条件表示エリア（グリッド上部） */
+    #clear-conditions {
+      background-color: rgba(255,255,255,0.9);
+      padding: 5px;
+      text-align: center;
+      font-size: 1em;
+    }
+    /* グリッドセル領域 */
+    #grid-cells { 
+      display: grid; 
+      grid-template-columns: repeat(6, 1fr); 
+      grid-template-rows: repeat(6, 1fr); 
+      gap: 2px; 
+      flex-grow: 1;
+    }
     .grid-cell {
-      background-color: #fff; border: 1px solid #999;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2em; user-select: none;
+      background-color: #fff; 
+      border: 1px solid #999;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      font-size: 2em; 
+      user-select: none;
     }
     /* コントロール領域 */
-    #controls { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 10px; z-index: 2; }
+    #controls { 
+      position: absolute; 
+      bottom: 10px; 
+      right: 10px; 
+      display: flex; 
+      gap: 10px; 
+      z-index: 2; 
+    }
     button { padding: 5px 10px; cursor: pointer; }
     /* パレット領域 */
     #palette {
-      width: 150px; background-color: #f5f5f5; padding: 10px;
-      border-left: 2px solid #ccc; display: flex; flex-direction: column; align-items: center;
+      width: 150px; 
+      background-color: #f5f5f5; 
+      padding: 10px;
+      border-left: 2px solid #ccc; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center;
     }
-    /* レベル情報をパレット内に表示 */
+    /* レベル情報（パレット内） */
     #level-info {
-      width: 100%; background-color: rgba(255,255,255,0.9);
-      padding: 5px; margin-bottom: 10px; border-radius: 5px;
-      text-align: center; font-size: 0.9em;
+      width: 100%; 
+      background-color: rgba(255,255,255,0.9);
+      padding: 5px; 
+      margin-bottom: 10px; 
+      border-radius: 5px;
+      text-align: center; 
+      font-size: 0.9em;
     }
     .palette-button {
-      width: 100%; font-size: 2em; margin-bottom: 10px; cursor: pointer;
+      width: 100%; 
+      font-size: 2em; 
+      margin-bottom: 10px; 
+      cursor: pointer;
     }
     .selected { border: 2px solid red; }
     .activated { background-color: yellow; }
@@ -59,6 +102,9 @@
   <div id="game-container">
     <!-- グリッド領域 -->
     <div id="grid-container">
+      <!-- クリア条件表示エリア -->
+      <div id="clear-conditions">クリア条件: </div>
+      <!-- グリッドセル領域 -->
       <div id="grid-cells"></div>
       <div id="controls">
         <button id="reset-button">リセット</button>
@@ -101,16 +147,17 @@
         objective: "1本の木を成長させる",
         allowedElements: ["sun", "rain"],
         initialState: {8: "🌱"},
+        clearCondition: "セル8の種が、隣接に☀️と🌧️が連続して配置され、3ターンで🌳に変化する",
         growthThreshold: 3,
         completionCheck: () => cells[8].textContent === "🌳"
       },
-      // 以下、レベル2～10は前回と同様（省略）
       {
         level: 2,
         name: "橋渡し",
         objective: "川を渡るようにする",
         allowedElements: ["snow"],
         initialState: {12: "😀", 15: "🌊", 20: "🏁"},
+        clearCondition: "セル15の川が、隣接に❄️が配置されて凍結し、🌉に変化する",
         completionCheck: () => cells[15].textContent === "🌉"
       },
       {
@@ -119,6 +166,7 @@
         objective: "雲を特定の位置に移動させる",
         allowedElements: ["wind"],
         initialState: {10: "☁️"},
+        clearCondition: "風（🌬️）の力で、雲（☁️）がセル25へ移動する",
         completionCheck: () => cells[25].textContent === "☁️"
       },
       {
@@ -127,6 +175,7 @@
         objective: "灯台の明かりを灯す",
         allowedElements: ["cloud", "wind", "thunder"],
         initialState: {5: "🏮", 22: "☁️"},
+        clearCondition: "セル5の灯台が、隣接に⚡が出現して💡に変化する",
         completionCheck: () => cells[5].textContent === "💡"
       },
       {
@@ -135,6 +184,7 @@
         objective: "凍った湖を溶かし、植物を成長させる",
         allowedElements: ["sun", "rain"],
         initialState: {14: "🧊", 15: "🌱"},
+        clearCondition: "セル14の🧊が、隣接に☀️と🌧️で💧に変化、またはセル15の種が🌳に成長する",
         completionCheck: () => cells[14].textContent === "💧" || cells[15].textContent === "🌳"
       },
       {
@@ -143,6 +193,7 @@
         objective: "特定の場所に雷雨を発生させる",
         allowedElements: ["sun", "water", "wind"],
         initialState: {22: "💧", 23: ""},
+        clearCondition: "セル22の水源に☀️と🌬️が隣接し、セル23に⛈️が発生する",
         completionCheck: () => cells[23].textContent === "⛈️"
       },
       {
@@ -151,6 +202,7 @@
         objective: "4つのエリアに異なる季節を作る（冬、春、夏、秋）",
         allowedElements: ["all"],
         initialState: {1: "", 10: "", 20: "", 30: ""},
+        clearCondition: "セル1に❄️、セル10に🌸、セル20に☀️、セル30に🍂を作り出す",
         completionCheck: () =>
           cells[1].textContent === "❄️" &&
           cells[10].textContent === "🌸" &&
@@ -163,6 +215,7 @@
         objective: "3つの装置に電力を供給する",
         allowedElements: ["cloud", "wind", "thunder"],
         initialState: {3: "🔌", 18: "🔌", 33: "🔌"},
+        clearCondition: "各装置の隣接に⚡が配置され、💡に変化する",
         completionCheck: () =>
           cells[3].textContent === "💡" &&
           cells[18].textContent === "💡" &&
@@ -174,6 +227,7 @@
         objective: "植物→動物→土壌→植物のサイクルを完了させる",
         allowedElements: ["sun", "rain", "wind"],
         initialState: {8: "🌱"},
+        clearCondition: "セル8の種が🌳に成長し、最終的に🔄に変化する",
         completionCheck: () => cells[8].textContent === "🔄"
       },
       {
@@ -182,6 +236,7 @@
         objective: "指定された順序で天気現象を発生させる（晴れ→雨→雷→雪）",
         allowedElements: ["all"],
         initialState: {12: ""},
+        clearCondition: "セル12に☀️🌧️⚡❄️を正しい順序で配置する",
         completionCheck: () => cells[12].textContent === "☀️🌧️⚡❄️"
       }
     ];
@@ -210,8 +265,8 @@
             delete cell.dataset.timer;
           }, 800);
         });
-        cell.addEventListener("mouseup", function(e) { clearTimeout(pressTimer); });
-        cell.addEventListener("mouseout", function(e) { clearTimeout(pressTimer); });
+        cell.addEventListener("mouseup", () => clearTimeout(pressTimer));
+        cell.addEventListener("mouseout", () => clearTimeout(pressTimer));
         gridCellsContainer.appendChild(cell);
         cells.push(cell);
       }
@@ -235,7 +290,9 @@
         cell.dataset.growth = "0";
         if (["rainbow", "aurora", "typhoon"].includes(selectedElement)) {
           cell.dataset.timer = (selectedElement === "typhoon") ? 2 : 5;
-        } else { delete cell.dataset.timer; }
+        } else { 
+          delete cell.dataset.timer; 
+        }
       } else {
         if (cell.textContent !== "") {
           cell.classList.toggle("activated");
@@ -268,7 +325,7 @@
       return neighbors;
     }
 
-    // 修正済み：種の成長シミュレーション（レベル1・9）
+    // 種の成長シミュレーション（レベル1・9）
     function simulateSeedGrowth(index) {
       const cell = cells[index];
       const neighbors = getNeighborIndexes(index);
@@ -293,7 +350,7 @@
       }
     }
 
-    // 台風の効果：台風セル（🌀）の隣接セル同士をランダムに入れ替える
+    // 台風の効果：台風セルの隣接セル同士をランダムに入れ替える
     function applyTyphoonEffect() {
       cells.forEach((cell, index) => {
         if (cell.textContent === weatherElements.typhoon) {
@@ -432,6 +489,9 @@
         "目標: " + currentLevel.objective;
       document.getElementById("allowed-elements").textContent =
         "使用可能: " + currentLevel.allowedElements.join(" ");
+      // クリア条件エリアに設定
+      document.getElementById("clear-conditions").textContent =
+        "クリア条件: " + currentLevel.clearCondition;
       createGrid();
       for (const key in currentLevel.initialState) {
         const idx = parseInt(key);
@@ -450,9 +510,7 @@
 
     // スタートボタンの処理
     document.getElementById("start-button").addEventListener("click", function() {
-      // スタートボタンのオーバーレイを非表示にする
       document.getElementById("start-screen").style.display = "none";
-      // ゲームを開始
       loadLevel(currentLevelIndex);
     });
   </script>
