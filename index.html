@@ -83,8 +83,10 @@
         objective: "1本の木を成長させる",
         allowedElements: ["sun", "rain"],
         initialState: {8: "🌱"},
+        growthThreshold: 3,
         completionCheck: () => cells[8].textContent === "🌳"
       },
+      // レベル2～10は前回のコード例と同様（省略）
       {
         level: 2,
         name: "橋渡し",
@@ -249,72 +251,61 @@
       return neighbors;
     }
 
-    // レベルごとの自動効果シミュレーション
-    function simulateEffects(currentLevel) {
-      // レベル1: 種 (🌱) が隣接に☀️と🌧️があれば成長カウンターを進め、一定値で木 (🌳) に変化
-      if (currentLevel.level === 1) {
-        // 既にcompletionCheckで判定
+    // レベル1・9の成長条件：隣接セルに☀️と🌧️がある場合に成長
+    function simulateSeedGrowth(index) {
+      const cell = cells[index];
+      let increment = 0;
+      const neighbors = getNeighborIndexes(index);
+      const hasSun = neighbors.some(idx => cells[idx].textContent === weatherElements.sun);
+      const hasRain = neighbors.some(idx => cells[idx].textContent === weatherElements.rain);
+      if (hasSun && hasRain) {
+        // 虹があれば効果アップ（2倍）
+        const bonus = neighbors.some(idx => cells[idx].textContent === weatherElements.rainbow) ? 2 : 1;
+        increment = bonus;
       }
-      // レベル2: セル15が川 (🌊) で、隣接に雪 (❄️) があれば凍結して橋 (🌉) になる
-      if (currentLevel.level === 2) {
-        if (cells[15].textContent === "🌊" &&
-            getNeighborIndexes(15).some(idx => cells[idx].textContent === weatherElements.snow)) {
-          cells[15].textContent = "🌉";
-        }
+      let growth = parseInt(cell.dataset.growth) || 0;
+      growth += increment;
+      cell.dataset.growth = growth;
+      if (growth >= levels[currentLevelIndex].growthThreshold) {
+        // 成長条件を満たせば種が木に変化
+        cell.textContent = "🌳";
+        cell.dataset.growth = "0";
       }
-      // レベル3: 雲 (☁️) があるセルの隣に風 (🌬️) があれば、ターゲット (セル25) に移動
-      if (currentLevel.level === 3) {
-        const cloudIndex = cells.findIndex(cell => cell.textContent === "☁️");
-        if (cloudIndex !== -1 && cloudIndex !== 25 &&
-            getNeighborIndexes(cloudIndex).some(idx => cells[idx].textContent === weatherElements.wind) &&
-            cells[25].textContent === "") {
-          cells[25].textContent = "☁️";
-          cells[cloudIndex].textContent = "";
-        }
-      }
-      // レベル4: 灯台 (🏮) の隣接に雷 (⚡) があれば点灯 (💡) に変化
-      if (currentLevel.level === 4) {
-        if (cells[5].textContent === "🏮" &&
-            getNeighborIndexes(5).some(idx => cells[idx].textContent === weatherElements.thunder)) {
-          cells[5].textContent = "💡";
-        }
-      }
-      // レベル5: 凍った湖 (🧊) の隣接に☀️と🌧️があれば水 (💧) に変化し、種が木 (🌳) に
-      if (currentLevel.level === 5) {
-        if (cells[14].textContent === "🧊" &&
-            getNeighborIndexes(14).some(idx => cells[idx].textContent === weatherElements.sun) &&
-            getNeighborIndexes(14).some(idx => cells[idx].textContent === weatherElements.rain)) {
-          cells[14].textContent = "💧";
-          if (cells[15].textContent === "🌱") {
-            cells[15].textContent = "🌳";
+    }
+
+    // 台風の効果：台風セル（🌀）の隣接セル同士をランダムに入れ替える
+    function applyTyphoonEffect() {
+      cells.forEach((cell, index) => {
+        if (cell.textContent === weatherElements.typhoon) {
+          const neighbors = getNeighborIndexes(index);
+          const validNeighbors = neighbors.filter(idx => {
+            const content = cells[idx].textContent;
+            return content !== "" && content !== "🌱" && content !== "🌳";
+          });
+          if (validNeighbors.length >= 2) {
+            const idx1 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            let idx2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            while (idx1 === idx2 && validNeighbors.length > 1) {
+              idx2 = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+            }
+            const temp = cells[idx1].textContent;
+            cells[idx1].textContent = cells[idx2].textContent;
+            cells[idx2].textContent = temp;
           }
         }
-      }
-      // レベル6: 水源 (💧) に☀️と隣接の風 (🌬️) があれば目標エリア (セル23) に雷雨 (⛈️) を発生
-      if (currentLevel.level === 6) {
-        if (cells[22].textContent === "💧" &&
-            cells.some(cell => cell.textContent === weatherElements.sun) &&
-            getNeighborIndexes(22).some(idx => cells[idx].textContent === weatherElements.wind)) {
-          cells[23].textContent = "⛈️";
+      });
+    }
+
+    // 新要素のタイマー更新（持続ターン経過後に自動消失）
+    function updateWeatherElementTimers() {
+      cells.forEach(cell => {
+        if (["rainbow", "aurora", "typhoon"].includes(cell.textContent) && cell.dataset.timer) {
+          let t = parseInt(cell.dataset.timer);
+          t--;
+          if (t <= 0) { cell.textContent = ""; delete cell.dataset.timer; }
+          else { cell.dataset.timer = t; }
         }
-      }
-      // レベル8: 各装置 (🔌) の隣接に雷 (⚡) があれば電力供給済み (💡) に変化
-      if (currentLevel.level === 8) {
-        [3, 18, 33].forEach(idx => {
-          if (cells[idx].textContent === "🔌" &&
-              getNeighborIndexes(idx).some(i => cells[i].textContent === weatherElements.thunder)) {
-            cells[idx].textContent = "💡";
-          }
-        });
-      }
-      // レベル9: 種 (🌱) が木 (🌳) に成長したら、生命の循環完了 (🔄) に変化
-      if (currentLevel.level === 9) {
-        if (cells[8].textContent === "🌳") {
-          cells[8].textContent = "🔄";
-        }
-      }
-      // レベル10: 指定セル (セル12) に正しい順序の連結文字列があればクリア
-      // ※プレイヤーが直接配置して達成する想定
+      });
     }
 
     let turn = 0;
@@ -334,37 +325,75 @@
         // 各セルの種 (🌱) の成長シミュレーション（レベル1、9の場合）
         cells.forEach((cell, index) => {
           if (cell.textContent === "🌱") {
-            // レベル1・9は成長条件：隣接に☀️と🌧️なら成長カウンター進行
-            let increment = 0;
-            if (["sun", "rain"].every(e => getNeighborIndexes(index).some(idx => cells[idx].textContent === weatherElements[e]))) {
-              // 虹があれば効果アップ（2倍）
-              increment = getNeighborIndexes(index).some(idx => cells[idx].textContent === weatherElements.rainbow) ? 2 : 1;
-            }
-            let growth = parseInt(cell.dataset.growth) || 0;
-            growth += increment;
-            cell.dataset.growth = growth;
-            if (growth >= levels[currentLevelIndex].growthThreshold) {
-              cell.textContent = "🌳";
-              cell.dataset.growth = "0";
-            }
+            // レベル1とレベル9の処理
+            simulateSeedGrowth(index);
           }
         });
-        // 新要素のタイマー更新（持続ターン経過後に自動消失）
-        cells.forEach(cell => {
-          if (["rainbow", "aurora", "typhoon"].includes(cell.textContent) && cell.dataset.timer) {
-            let t = parseInt(cell.dataset.timer);
-            t--;
-            if (t <= 0) { cell.textContent = ""; delete cell.dataset.timer; }
-            else { cell.dataset.timer = t; }
-          }
-        });
+        // 新要素のタイマー更新
+        updateWeatherElementTimers();
         // 各レベル固有の自動効果
-        simulateEffects(levels[currentLevelIndex]);
+        simulateEffects(currentLevel);
         // レベルクリア判定
-        if (checkLevelCompletion(levels[currentLevelIndex])) {
+        if (checkLevelCompletion(currentLevel)) {
           levelComplete();
         }
       }, turnInterval);
+    }
+
+    // 各レベル固有の自動効果シミュレーション
+    function simulateEffects(currentLevel) {
+      if (currentLevel.level === 2) {
+        if (cells[15].textContent === "🌊" &&
+            getNeighborIndexes(15).some(idx => cells[idx].textContent === weatherElements.snow)) {
+          cells[15].textContent = "🌉";
+        }
+      }
+      if (currentLevel.level === 3) {
+        const cloudIndex = cells.findIndex(cell => cell.textContent === "☁️");
+        if (cloudIndex !== -1 && cloudIndex !== 25 &&
+            getNeighborIndexes(cloudIndex).some(idx => cells[idx].textContent === weatherElements.wind) &&
+            cells[25].textContent === "") {
+          cells[25].textContent = "☁️";
+          cells[cloudIndex].textContent = "";
+        }
+      }
+      if (currentLevel.level === 4) {
+        if (cells[5].textContent === "🏮" &&
+            getNeighborIndexes(5).some(idx => cells[idx].textContent === weatherElements.thunder)) {
+          cells[5].textContent = "💡";
+        }
+      }
+      if (currentLevel.level === 5) {
+        if (cells[14].textContent === "🧊" &&
+            getNeighborIndexes(14).some(idx => cells[idx].textContent === weatherElements.sun) &&
+            getNeighborIndexes(14).some(idx => cells[idx].textContent === weatherElements.rain)) {
+          cells[14].textContent = "💧";
+          if (cells[15].textContent === "🌱") {
+            cells[15].textContent = "🌳";
+          }
+        }
+      }
+      if (currentLevel.level === 6) {
+        if (cells[22].textContent === "💧" &&
+            cells.some(cell => cell.textContent === weatherElements.sun) &&
+            getNeighborIndexes(22).some(idx => cells[idx].textContent === weatherElements.wind)) {
+          cells[23].textContent = "⛈️";
+        }
+      }
+      if (currentLevel.level === 8) {
+        [3, 18, 33].forEach(idx => {
+          if (cells[idx].textContent === "🔌" &&
+              getNeighborIndexes(idx).some(i => cells[i].textContent === weatherElements.thunder)) {
+            cells[idx].textContent = "💡";
+          }
+        });
+      }
+      if (currentLevel.level === 9) {
+        if (cells[8].textContent === "🌳") {
+          cells[8].textContent = "🔄";
+        }
+      }
+      // レベル10はプレイヤー操作による達成を想定
     }
 
     function levelComplete() {
@@ -378,7 +407,6 @@
       }
     }
 
-    // 指定レベルの初期状態をロード（初期状態オブジェクトのキーはセルインデックス）
     function loadLevel(levelIndex) {
       turn = 0;
       timeDisplay.textContent = 'Time: ' + turn + ' sec, Turn: ' + turn;
@@ -390,7 +418,6 @@
       document.getElementById("allowed-elements").textContent =
         "使用可能: " + currentLevel.allowedElements.join(" ");
       createGrid();
-      // 初期状態の配置（指定セルにアイコンを設定）
       for (const key in currentLevel.initialState) {
         const idx = parseInt(key);
         cells[idx].textContent = currentLevel.initialState[key];
@@ -403,10 +430,9 @@
       loadLevel(currentLevelIndex);
     });
     document.getElementById("hint-button").addEventListener("click", function() {
-      alert("ヒント:\n・ミッションはレベルごとに異なります。\n・指定のセルやエリアに必要な状態になるよう、天気要素を配置してください。\n（例：レベル1は種の隣に☀️と🌧️を配置すると成長します）");
+      alert("ヒント:\n・ミッションはレベルごとに異なります。\n・指定セルやエリアに必要な状態になるよう、天気要素を配置してください。\n（例：レベル1は種の隣に☀️と🌧️を配置すると成長します）");
     });
 
-    // 初期レベルのロード
     loadLevel(currentLevelIndex);
   </script>
 </body>
